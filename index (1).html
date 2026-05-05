@@ -42,6 +42,34 @@
       overflow-x: hidden;
     }
 
+    /* ─── Custom Animated Cursor (desktop only) ────────────── */
+    #custom-cursor {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 44px;
+      height: 44px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 10000;
+      opacity: 0;
+      transition: opacity 120ms ease;
+      display: none;
+    }
+
+    #custom-cursor img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 0 10px rgba(198,150,97,0.22));
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      body { cursor: none; }
+      #custom-cursor { display: block; }
+    }
+
     body.intro-active { overflow: hidden; }
 
     /* SVG film grain overlay */
@@ -411,12 +439,50 @@
       opacity: 0;
     }
 
+    /* Photo mode: clean grid (no text overlay) */
+    #about.has-photo {
+      grid-template-columns: minmax(280px, 460px) 1fr;
+    }
+
+    #about.has-photo #about-gif {
+      position: relative;
+      top: auto;
+      left: auto;
+      transform: none !important;
+      width: 100%;
+      max-width: 460px;
+      height: auto;
+      opacity: 1 !important;
+      mix-blend-mode: normal;
+      filter: none !important;
+      z-index: 2;
+      grid-column: 1;
+      grid-row: 1 / span 2;
+      align-self: start;
+      justify-self: start;
+    }
+
+    #about.has-photo .about-left {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    #about.has-photo .about-right {
+      grid-column: 2;
+      grid-row: 2;
+    }
+
     .about-bg-overlay {
       position: absolute;
       inset: 0;
       background: linear-gradient(to right, rgba(10,15,44,0) 0%, rgba(10,15,44,1) 60%);
       z-index: 1;
       pointer-events: none;
+    }
+
+    /* Slightly lighter overlay when the About photo is used */
+    #about.has-photo .about-bg-overlay {
+      display: none;
     }
 
     .about-left, .about-right { position: relative; z-index: 2; }
@@ -533,8 +599,7 @@
     .timeline-item {
       position: relative;
       margin-bottom: 72px;
-      display: grid;
-      grid-template-columns: 0px 1fr;
+      display: block;
     }
 
     .timeline-dot {
@@ -837,6 +902,27 @@
         padding: 80px 32px;
       }
 
+      #about.has-photo {
+        grid-template-columns: 1fr;
+      }
+
+      #about.has-photo #about-gif {
+        grid-column: 1;
+        grid-row: 1;
+        justify-self: center;
+        max-width: 520px;
+      }
+
+      #about.has-photo .about-left {
+        grid-column: 1;
+        grid-row: 2;
+      }
+
+      #about.has-photo .about-right {
+        grid-column: 1;
+        grid-row: 3;
+      }
+
       .skills-grid { grid-template-columns: 1fr; gap: 40px; }
       #skills { padding: 80px 32px; }
 
@@ -860,6 +946,11 @@
   </style>
 </head>
 <body class="intro-active">
+
+  <!-- ─── Custom Cursor ────────────────────────────────────── -->
+  <div id="custom-cursor" aria-hidden="true">
+    <img src="butterfly.gif" alt="" />
+  </div>
 
   <!-- ─── Intro Overlay ──────────────────────────────────────── -->
   <div id="intro-overlay">
@@ -914,7 +1005,7 @@
 
   <!-- ─── About ─────────────────────────────────────────────── -->
   <section id="about">
-    <img class="about-bg-gif" src="background_second.gif" alt="" id="about-gif" />
+    <img class="about-bg-gif" src="about_photo.png" alt="" id="about-gif" />
     <div class="about-bg-overlay"></div>
 
     <div class="about-left">
@@ -939,8 +1030,7 @@
       <p class="about-body fade-up">
         I'm still figuring things out — learning, experimenting, and building along the way.
         But one thing is constant: I like turning <em>scattered pieces into something that makes sense</em>.
-        In the long run, I see myself in Project Management. For now, I'm exploring where AI
-        and structured thinking meet. This space is a reflection of that journey.
+        In the long run, I love building with AI and bringing ideas to life, but I see myself doing it on a larger scale — with the right team, creating something meaningful. As I explore AI, I’m growing into Project Management — leading what I build with clarity, direction, and purpose.
       </p>
       <div class="about-signature fade-up">— H. Chennupati</div>
     </div>
@@ -1148,6 +1238,24 @@
     const aboutGif = document.getElementById('about-gif');
     let rafId = null;
 
+    if (aboutGif) {
+      aboutGif.addEventListener('error', () => {
+        aboutGif.src = 'background_second.gif';
+      }, { once: true });
+
+      aboutGif.addEventListener('load', () => {
+        const isPhoto = /about_photo\.(png|jpe?g|webp)$/i.test(aboutGif.getAttribute('src') || '');
+        if (isPhoto) {
+          aboutGif.classList.add('about-photo');
+          aboutSection?.classList.add('has-photo');
+          aboutGif.style.transform = '';
+          aboutGif.style.filter = 'none';
+        }
+
+        updateAboutGif();
+      }, { once: true });
+    }
+
     function updateAboutGif() {
       const rect = aboutSection.getBoundingClientRect();
       const vh = window.innerHeight;
@@ -1155,7 +1263,18 @@
       const scrolled = vh - rect.top;
       const progress = Math.max(0, Math.min(1, scrolled / total));
 
-      // Bell curve opacity peaking at 0.5
+      const srcAttr = aboutGif?.getAttribute('src') || '';
+      const isPhoto = (aboutGif?.classList.contains('about-photo') ?? false) || /about_photo\.(png|jpe?g|webp)$/i.test(srcAttr);
+
+      if (isPhoto) {
+        aboutGif.style.opacity = '1';
+        aboutGif.style.filter = 'none';
+        aboutGif.style.transform = '';
+        rafId = null;
+        return;
+      }
+
+      // Photo stays solid; GIF keeps the cinematic fade behavior
       const opacity = 0.55 * Math.sin(progress * Math.PI);
       const scale = 0.9 + progress * 0.4;
       const tx = -30 + progress * 20;
@@ -1174,6 +1293,8 @@
 
     window.addEventListener('resize', updateAboutGif, { passive: true });
 
+    updateAboutGif();
+
     // IntersectionObserver fade-up
     const fadeEls = document.querySelectorAll('.fade-up');
     const observer = new IntersectionObserver((entries) => {
@@ -1186,6 +1307,53 @@
     }, { threshold: 0.12 });
 
     fadeEls.forEach(el => observer.observe(el));
+
+    // Custom animated cursor (desktop only)
+    (() => {
+      const cursorEl = document.getElementById('custom-cursor');
+      if (!cursorEl) return;
+
+      const isFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      if (!isFinePointer) return;
+
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let lastX = 0;
+      let lastY = 0;
+      let rafPending = false;
+      let hasMoved = false;
+
+      function applyPosition() {
+        rafPending = false;
+        cursorEl.style.left = `${lastX}px`;
+        cursorEl.style.top = `${lastY}px`;
+        if (!hasMoved) {
+          hasMoved = true;
+          cursorEl.style.opacity = '1';
+        }
+      }
+
+      window.addEventListener('mousemove', (e) => {
+        lastX = e.clientX;
+        lastY = e.clientY;
+        if (prefersReducedMotion) {
+          applyPosition();
+          return;
+        }
+        if (!rafPending) {
+          rafPending = true;
+          requestAnimationFrame(applyPosition);
+        }
+      }, { passive: true });
+
+      window.addEventListener('mouseleave', () => {
+        cursorEl.style.opacity = '0';
+        hasMoved = false;
+      });
+
+      window.addEventListener('mouseenter', () => {
+        if (hasMoved) cursorEl.style.opacity = '1';
+      });
+    })();
   </script>
 </body>
 </html>
